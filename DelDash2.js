@@ -8,7 +8,7 @@
 // - Lock Screen Rectangular
 // - Small Widget
 // - Medium Widget
-// - CarPlay-style large display
+// - Large Widget
 //
 // Put route.json in Scriptable/iCloud/Documents
 // ======================================================
@@ -17,10 +17,10 @@
 // AUTO UPDATE CONFIG
 // ======================================================
 
-const SCRIPT_VERSION = "1.0.2"
+const SCRIPT_VERSION = "1.0.3"
 
 const UPDATE_INFO_URL =
-  "https://raw.githubusercontent.com/Jalla-js/DeliveryDashboard/refs/heads/main/version.json"
+  "https://raw.githubusercontent.com/Jalla-js/DeliveryDashboard/main/version.json"
 
 // ======================================================
 // FILE SETUP
@@ -39,19 +39,34 @@ async function checkForUpdates() {
 
   try {
 
-    const req = new Request(UPDATE_INFO_URL)
+    // CACHE BUST
+    const cacheBust =
+      "?t=" + Date.now()
+
+    const req = new Request(
+      UPDATE_INFO_URL + cacheBust
+    )
 
     req.timeoutInterval = 5
 
     const info = await req.loadJSON()
 
-    latestVersion = info.version || SCRIPT_VERSION
+    latestVersion =
+      info.version || SCRIPT_VERSION
+
+    console.log(
+      `Current Version: ${SCRIPT_VERSION}`
+    )
+
+    console.log(
+      `Latest Version: ${latestVersion}`
+    )
 
     if (latestVersion !== SCRIPT_VERSION) {
 
       updateAvailable = true
 
-      // ONLY ASK TO UPDATE INSIDE APP
+      // ONLY PROMPT INSIDE APP
       if (!config.runsInWidget) {
 
         let alert = new Alert()
@@ -65,11 +80,14 @@ async function checkForUpdates() {
         alert.addAction("Update Now")
         alert.addCancelAction("Later")
 
-        let result = await alert.present()
+        let result =
+          await alert.present()
 
         if (result === 0) {
 
-          await installUpdate(info.script)
+          await installUpdate(
+            info.script
+          )
 
         }
       }
@@ -77,7 +95,10 @@ async function checkForUpdates() {
 
   } catch (e) {
 
-    console.log("Update check failed")
+    console.log(
+      "Update check failed"
+    )
+
     console.log(e)
 
   }
@@ -91,34 +112,83 @@ async function installUpdate(url) {
 
   try {
 
-    let req = new Request(url)
+    // CACHE BUST
+    const cacheBust =
+      "?t=" + Date.now()
 
-    let newCode = await req.loadString()
+    const req = new Request(
+      url + cacheBust
+    )
 
-    let path = module.filename
+    req.timeoutInterval = 10
 
+    const newCode =
+      await req.loadString()
+
+    // CURRENT SCRIPT PATH
+    const path = fm.joinPath(
+      fm.documentsDirectory(),
+      Script.name() + ".js"
+    )
+
+    console.log(
+      "Installing update..."
+    )
+
+    console.log(path)
+
+    // OVERWRITE SCRIPT
     fm.writeString(path, newCode)
 
+    // VERIFY WRITE
+    const verify =
+      fm.readString(path)
+
+    if (
+      !verify.includes(
+        latestVersion
+      )
+    ) {
+
+      throw new Error(
+        "Update verification failed"
+      )
+
+    }
+
+    // SUCCESS NOTIFICATION
     let n = new Notification()
 
     n.title = "Widget Updated"
 
-    n.body = `Updated to ${latestVersion}`
+    n.body =
+      `Updated to ${latestVersion}`
 
     await n.schedule()
 
+    // REOPEN SCRIPT
     Safari.open(
       "scriptable:///run/" +
-      encodeURIComponent(Script.name())
+      encodeURIComponent(
+        Script.name()
+      )
     )
 
   } catch (e) {
+
+    console.log(
+      "INSTALL FAILED"
+    )
+
+    console.log(e)
 
     let a = new Alert()
 
     a.title = "Update Failed"
 
     a.message = String(e)
+
+    a.addAction("OK")
 
     await a.present()
 
@@ -187,32 +257,47 @@ if (isNaN(start) || isNaN(end)) {
 // TIME CALCULATIONS
 // ======================================================
 
-let totalMinutes = (end - start) / 60000
-let elapsedMinutes = (now - start) / 60000
+let totalMinutes =
+  (end - start) / 60000
 
-totalMinutes = Math.max(totalMinutes, 1)
-elapsedMinutes = Math.max(elapsedMinutes, 1)
+let elapsedMinutes =
+  (now - start) / 60000
 
-const totalHours = totalMinutes / 60
-const elapsedHours = elapsedMinutes / 60
+totalMinutes =
+  Math.max(totalMinutes, 1)
+
+elapsedMinutes =
+  Math.max(elapsedMinutes, 1)
+
+const totalHours =
+  totalMinutes / 60
+
+const elapsedHours =
+  elapsedMinutes / 60
 
 // ======================================================
 // PERFORMANCE CALCULATIONS
 // ======================================================
 
-const percent = total > 0
-  ? Math.round((delivered / total) * 100)
-  : 0
+const percent =
+  total > 0
+    ? Math.round(
+        (delivered / total) * 100
+      )
+    : 0
 
 const expected =
-  (elapsedMinutes / totalMinutes) * total
+  (elapsedMinutes / totalMinutes) *
+  total
 
-const diff = delivered - expected
+const diff =
+  delivered - expected
 
 const activeHours =
   Math.max(elapsedHours, 0.33)
 
-let pace = delivered / activeHours
+let pace =
+  delivered / activeHours
 
 pace = Math.max(pace, 1)
 pace = Math.min(pace, 60)
@@ -220,22 +305,27 @@ pace = Math.min(pace, 60)
 const remaining =
   Math.max(total - delivered, 0)
 
-const hoursLeft = remaining / pace
+const hoursLeft =
+  remaining / pace
 
 const eta = new Date(
-  now.getTime() + hoursLeft * 3600000
+  now.getTime() +
+  hoursLeft * 3600000
 )
 
-const etaStr = eta.toLocaleTimeString([], {
-  hour: "2-digit",
-  minute: "2-digit"
-})
+const etaStr =
+  eta.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit"
+  })
 
 const remainingMinutes =
   Math.round(hoursLeft * 60)
 
 const hrsLeft =
-  Math.floor(remainingMinutes / 60)
+  Math.floor(
+    remainingMinutes / 60
+  )
 
 const minsLeft =
   remainingMinutes % 60
@@ -254,8 +344,11 @@ let statusColor = Color.orange()
 
 if (diff >= 8) {
 
-  statusText = "🔥 Flying today"
-  statusColor = Color.green()
+  statusText =
+    "🔥 Flying today"
+
+  statusColor =
+    Color.green()
 
 }
 else if (diff >= 3) {
@@ -263,13 +356,17 @@ else if (diff >= 3) {
   statusText =
     `↑ Ahead by ${Math.round(diff)}`
 
-  statusColor = Color.green()
+  statusColor =
+    Color.green()
 
 }
 else if (diff > -3) {
 
-  statusText = "→ On pace"
-  statusColor = Color.orange()
+  statusText =
+    "→ On pace"
+
+  statusColor =
+    Color.orange()
 
 }
 else {
@@ -277,7 +374,8 @@ else {
   statusText =
     `↓ Behind by ${Math.round(Math.abs(diff))}`
 
-  statusColor = Color.red()
+  statusColor =
+    Color.red()
 
 }
 
@@ -301,27 +399,33 @@ let widget
 switch (config.widgetFamily) {
 
   case "accessoryInline":
-    widget = createInlineWidget()
+    widget =
+      createInlineWidget()
     break
 
   case "accessoryRectangular":
-    widget = createLockRectWidget()
+    widget =
+      createLockRectWidget()
     break
 
   case "small":
-    widget = createSmallWidget()
+    widget =
+      createSmallWidget()
     break
 
   case "medium":
-    widget = createMediumWidget()
+    widget =
+      createMediumWidget()
     break
 
   case "large":
-    widget = createCarPlayWidget()
+    widget =
+      createLargeWidget()
     break
 
   default:
-    widget = createMediumWidget()
+    widget =
+      createMediumWidget()
     break
 }
 
@@ -334,14 +438,18 @@ Script.complete()
 
 function createInlineWidget() {
 
-  let w = new ListWidget()
+  let w =
+    new ListWidget()
 
   let t = w.addText(
     `${delivered}/${total} • ${percent}%`
   )
 
-  t.font = Font.mediumSystemFont(12)
-  t.textColor = Color.white()
+  t.font =
+    Font.mediumSystemFont(12)
+
+  t.textColor =
+    Color.white()
 
   return w
 }
@@ -352,34 +460,51 @@ function createInlineWidget() {
 
 function createLockRectWidget() {
 
-  let w = new ListWidget()
+  let w =
+    new ListWidget()
 
   setBackground(w)
 
   addUpdateBanner(w)
 
-  let top = w.addText(`${delivered}/${total}`)
+  let top =
+    w.addText(
+      `${delivered}/${total}`
+    )
 
-  top.font = Font.boldSystemFont(18)
-  top.textColor = Color.white()
+  top.font =
+    Font.boldSystemFont(18)
+
+  top.textColor =
+    Color.white()
 
   w.addSpacer(2)
 
-  let bar = w.addText(
-    makeBar(delivered, total, 12)
-  )
+  let bar =
+    w.addText(
+      makeBar(
+        delivered,
+        total,
+        12
+      )
+    )
 
   bar.font =
     Font.mediumMonospacedSystemFont(8)
 
-  bar.textColor = Color.green()
+  bar.textColor =
+    Color.green()
 
   w.addSpacer(3)
 
-  let s = w.addText(statusText)
+  let s =
+    w.addText(statusText)
 
-  s.font = Font.mediumSystemFont(11)
-  s.textColor = statusColor
+  s.font =
+    Font.mediumSystemFont(11)
+
+  s.textColor =
+    statusColor
 
   return w
 }
@@ -390,52 +515,77 @@ function createLockRectWidget() {
 
 function createSmallWidget() {
 
-  let w = new ListWidget()
+  let w =
+    new ListWidget()
 
   setBackground(w)
 
   addUpdateBanner(w)
 
-  let top = w.addText(`${delivered}/${total}`)
+  let top =
+    w.addText(
+      `${delivered}/${total}`
+    )
 
-  top.font = Font.boldSystemFont(28)
-  top.textColor = Color.white()
+  top.font =
+    Font.boldSystemFont(28)
+
+  top.textColor =
+    Color.white()
 
   w.addSpacer(4)
 
-  let bar = w.addText(
-    makeBar(delivered, total, 14)
-  )
+  let bar =
+    w.addText(
+      makeBar(
+        delivered,
+        total,
+        14
+      )
+    )
 
   bar.font =
     Font.mediumMonospacedSystemFont(9)
 
-  bar.textColor = Color.green()
+  bar.textColor =
+    Color.green()
 
   w.addSpacer(6)
 
-  let pct = w.addText(
-    `${percent}% complete`
-  )
+  let pct =
+    w.addText(
+      `${percent}% complete`
+    )
 
-  pct.font = Font.mediumSystemFont(12)
-  pct.textColor = Color.lightGray()
+  pct.font =
+    Font.mediumSystemFont(12)
+
+  pct.textColor =
+    Color.lightGray()
 
   w.addSpacer(4)
 
-  let st = w.addText(statusText)
+  let st =
+    w.addText(statusText)
 
-  st.font = Font.mediumSystemFont(11)
-  st.textColor = statusColor
+  st.font =
+    Font.mediumSystemFont(11)
+
+  st.textColor =
+    statusColor
 
   w.addSpacer()
 
-  let bottom = w.addText(
-    `${pace.toFixed(0)}/hr • ETA ${etaStr}`
-  )
+  let bottom =
+    w.addText(
+      `${pace.toFixed(0)}/hr • ETA ${etaStr}`
+    )
 
-  bottom.font = Font.mediumSystemFont(10)
-  bottom.textColor = Color.lightGray()
+  bottom.font =
+    Font.mediumSystemFont(10)
+
+  bottom.textColor =
+    Color.lightGray()
 
   return w
 }
@@ -446,93 +596,123 @@ function createSmallWidget() {
 
 function createMediumWidget() {
 
-  let w = new ListWidget()
+  let w =
+    new ListWidget()
 
   setBackground(w)
 
   addUpdateBanner(w)
 
-  let main = w.addStack()
+  let main =
+    w.addStack()
 
-  // LEFT
-  let left = main.addStack()
+  let left =
+    main.addStack()
+
   left.layoutVertically()
 
-  let big = left.addText(`${delivered}/${total}`)
+  let big =
+    left.addText(
+      `${delivered}/${total}`
+    )
 
-  big.font = Font.boldSystemFont(34)
-  big.textColor = Color.white()
+  big.font =
+    Font.boldSystemFont(34)
+
+  big.textColor =
+    Color.white()
 
   left.addSpacer(6)
 
-  let progress = left.addText(
-    makeBar(delivered, total, 18)
-  )
+  let progress =
+    left.addText(
+      makeBar(
+        delivered,
+        total,
+        18
+      )
+    )
 
   progress.font =
     Font.mediumMonospacedSystemFont(10)
 
-  progress.textColor = Color.green()
+  progress.textColor =
+    Color.green()
 
   left.addSpacer(6)
 
-  let pct = left.addText(
-    `${percent}% complete`
-  )
+  let pct =
+    left.addText(
+      `${percent}% complete`
+    )
 
-  pct.font = Font.mediumSystemFont(13)
-  pct.textColor = Color.lightGray()
+  pct.font =
+    Font.mediumSystemFont(13)
 
-  // SPACER
+  pct.textColor =
+    Color.lightGray()
+
   main.addSpacer()
 
-  // RIGHT
-  let right = main.addStack()
+  let right =
+    main.addStack()
+
   right.layoutVertically()
 
-  let stat = right.addText(statusText)
+  let stat =
+    right.addText(statusText)
 
-  stat.font = Font.mediumSystemFont(14)
-  stat.textColor = statusColor
+  stat.font =
+    Font.mediumSystemFont(14)
+
+  stat.textColor =
+    statusColor
 
   right.addSpacer(10)
 
-  let paceText = right.addText(
-    `${pace.toFixed(0)} parcels/hr`
-  )
+  let paceText =
+    right.addText(
+      `${pace.toFixed(0)} parcels/hr`
+    )
 
   paceText.font =
     Font.mediumSystemFont(13)
 
-  paceText.textColor = Color.white()
+  paceText.textColor =
+    Color.white()
 
   right.addSpacer(4)
 
-  let etaText = right.addText(
-    `ETA ${etaStr}`
-  )
+  let etaText =
+    right.addText(
+      `ETA ${etaStr}`
+    )
 
   etaText.font =
     Font.mediumSystemFont(13)
 
-  etaText.textColor = Color.white()
+  etaText.textColor =
+    Color.white()
 
   right.addSpacer(4)
 
-  let remain = right.addText(
-    remainingText
-  )
+  let remain =
+    right.addText(
+      remainingText
+    )
 
   remain.font =
     Font.mediumSystemFont(13)
 
-  remain.textColor = Color.lightGray()
+  remain.textColor =
+    Color.lightGray()
 
   w.addSpacer()
 
-  let footer = w.addText(
-    phaseText()
-  )
+  let footer =
+    w.addText(
+      phaseText()
+    )
 
   footer.font =
     Font.mediumSystemFont(11)
@@ -547,98 +727,66 @@ function createMediumWidget() {
 // LARGE WIDGET
 // ======================================================
 
-function createCarPlayWidget() {
+function createLargeWidget() {
 
-  let w = new ListWidget()
+  let w =
+    new ListWidget()
 
   setBackground(w)
 
   addUpdateBanner(w)
 
-  let title = w.addText(
-    "DELIVERY DASHBOARD"
-  )
+  let title =
+    w.addText(
+      "DELIVERY DASHBOARD"
+    )
 
-  title.font = Font.boldSystemFont(14)
-  title.textColor = Color.orange()
+  title.font =
+    Font.boldSystemFont(14)
 
-  w.addSpacer(10)
-
-  let count = w.addText(
-    `${delivered}/${total}`
-  )
-
-  count.font = Font.boldSystemFont(52)
-  count.textColor = Color.white()
+  title.textColor =
+    Color.orange()
 
   w.addSpacer(10)
 
-  let progress = w.addText(
-    makeBar(delivered, total, 28)
-  )
+  let count =
+    w.addText(
+      `${delivered}/${total}`
+    )
+
+  count.font =
+    Font.boldSystemFont(52)
+
+  count.textColor =
+    Color.white()
+
+  w.addSpacer(10)
+
+  let progress =
+    w.addText(
+      makeBar(
+        delivered,
+        total,
+        28
+      )
+    )
 
   progress.font =
     Font.mediumMonospacedSystemFont(14)
 
-  progress.textColor = Color.green()
+  progress.textColor =
+    Color.green()
 
   w.addSpacer(10)
 
-  let status = w.addText(statusText)
+  let status =
+    w.addText(statusText)
 
-  status.font = Font.boldSystemFont(20)
-  status.textColor = statusColor
+  status.font =
+    Font.boldSystemFont(20)
 
-  w.addSpacer(12)
-
-  let row = w.addStack()
-
-  let paceBox = row.addStack()
-  paceBox.layoutVertically()
-
-  let p1 = paceBox.addText("PACE")
-
-  p1.font = Font.mediumSystemFont(10)
-  p1.textColor = Color.gray()
-
-  let p2 = paceBox.addText(
-    `${pace.toFixed(0)}/HR`
-  )
-
-  p2.font = Font.boldSystemFont(22)
-  p2.textColor = Color.white()
-
-  row.addSpacer(24)
-
-  let etaBox = row.addStack()
-  etaBox.layoutVertically()
-
-  let e1 = etaBox.addText("ETA")
-
-  e1.font = Font.mediumSystemFont(10)
-  e1.textColor = Color.gray()
-
-  let e2 = etaBox.addText(etaStr)
-
-  e2.font = Font.boldSystemFont(22)
-  e2.textColor = Color.white()
-
-  row.addSpacer(24)
-
-  let remBox = row.addStack()
-  remBox.layoutVertically()
-
-  let r1 = remBox.addText("REMAINING")
-
-  r1.font = Font.mediumSystemFont(10)
-  r1.textColor = Color.gray()
-
-  let r2 = remBox.addText(
-    `${remaining}`
-  )
-
-  r2.font = Font.boldSystemFont(22)
-  r2.textColor = Color.white()
+  status.textColor =
+    statusColor
 
   return w
 }
@@ -649,38 +797,36 @@ function createCarPlayWidget() {
 
 function showFinishedWidget() {
 
-  let w = new ListWidget()
+  let w =
+    new ListWidget()
 
   setBackground(w)
 
   addUpdateBanner(w)
 
-  let top = w.addText(
-    "✅ Route Complete"
-  )
+  let top =
+    w.addText(
+      "✅ Route Complete"
+    )
 
-  top.font = Font.boldSystemFont(24)
-  top.textColor = Color.green()
+  top.font =
+    Font.boldSystemFont(24)
+
+  top.textColor =
+    Color.green()
 
   w.addSpacer(10)
 
-  let stat = w.addText(
-    `${delivered} parcels delivered`
-  )
+  let stat =
+    w.addText(
+      `${delivered} parcels delivered`
+    )
 
-  stat.font = Font.mediumSystemFont(16)
-  stat.textColor = Color.white()
+  stat.font =
+    Font.mediumSystemFont(16)
 
-  w.addSpacer(4)
-
-  let paceText = w.addText(
-    `${(delivered / totalHours).toFixed(1)} parcels/hr`
-  )
-
-  paceText.font =
-    Font.mediumSystemFont(14)
-
-  paceText.textColor = Color.lightGray()
+  stat.textColor =
+    Color.white()
 
   Script.setWidget(w)
   Script.complete()
@@ -696,21 +842,30 @@ function safeNum(n) {
 
 function finishError(message) {
 
-  let w = new ListWidget()
+  let w =
+    new ListWidget()
 
   w.backgroundColor =
     new Color("#111111")
 
-  let t = w.addText(message)
+  let t =
+    w.addText(message)
 
-  t.textColor = Color.red()
-  t.font = Font.boldSystemFont(16)
+  t.textColor =
+    Color.red()
+
+  t.font =
+    Font.boldSystemFont(16)
 
   Script.setWidget(w)
   Script.complete()
 }
 
-function makeBar(current, total, size = 12) {
+function makeBar(
+  current,
+  total,
+  size = 12
+) {
 
   let pct =
     total > 0
@@ -728,23 +883,32 @@ function makeBar(current, total, size = 12) {
 
 function setBackground(widget) {
 
-  let gradient = new LinearGradient()
+  let gradient =
+    new LinearGradient()
 
-  gradient.locations = [0, 1]
+  gradient.locations =
+    [0, 1]
 
   gradient.colors = [
     new Color("#1c1c1e"),
     new Color("#111111")
   ]
 
-  widget.backgroundGradient = gradient
+  widget.backgroundGradient =
+    gradient
 
-  widget.setPadding(14, 14, 14, 14)
+  widget.setPadding(
+    14,
+    14,
+    14,
+    14
+  )
 }
 
 function phaseText() {
 
-  let hour = now.getHours()
+  let hour =
+    now.getHours()
 
   if (hour < 11) {
     return "Good start to the route"
@@ -769,20 +933,28 @@ function addUpdateBanner(widget) {
 
   if (!updateAvailable) return
 
-  let banner = widget.addStack()
+  let banner =
+    widget.addStack()
 
   banner.backgroundColor =
     new Color("#ff9500", 0.18)
 
   banner.cornerRadius = 8
 
-  banner.setPadding(4, 6, 4, 6)
-
-  let text = banner.addText(
-    "NEW VERSION • Run in Scriptable"
+  banner.setPadding(
+    4,
+    6,
+    4,
+    6
   )
 
-  text.font = Font.boldSystemFont(9)
+  let text =
+    banner.addText(
+      "NEW VERSION • Run in Scriptable"
+    )
+
+  text.font =
+    Font.boldSystemFont(9)
 
   text.textColor =
     new Color("#ff9500")
