@@ -20,7 +20,7 @@
 const SCRIPT_VERSION = "1.0.0"
 
 const UPDATE_INFO_URL =
-  "https://raw.githubusercontent.com/YOUR/repo/main/version.json"
+  "https://raw.githubusercontent.com/Jalla-js/DeliveryDashboard/refs/heads/main/version.json"
 
 // ======================================================
 // FILE SETUP
