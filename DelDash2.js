@@ -17,7 +17,7 @@
 // AUTO UPDATE CONFIG
 // ======================================================
 
-const SCRIPT_VERSION = "1.0.0"
+const SCRIPT_VERSION = "1.0.2"
 
 const UPDATE_INFO_URL =
   "https://raw.githubusercontent.com/Jalla-js/DeliveryDashboard/refs/heads/main/version.json"
